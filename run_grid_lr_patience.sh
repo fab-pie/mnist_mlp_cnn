@@ -1,5 +1,20 @@
 #!/usr/bin/env bash
 # Run grid comparing LR vs PATIENCE for cnn and mlp
+#
+# Usage example:
+#   STEPS=50 BATCH=512 JIT=1 bash run_grid_lr_patience.sh
+#
+# Environment variables (overrides defaults):
+#   STEPS   - training steps per run (default 70)
+#   BATCH   - batch size (default 512)
+#   JIT     - JIT flag (default 1)
+#   DRY_RUN - if set to 1, commands are printed but not executed (default 0)
+#
+# Output:
+#   - Logs are saved under `logs/` as run_<label>_<idx>_... .log
+#   - Per-model CSVs written as results_lr_vs_patience_<label>.csv
+# Note: ensure the wrapper `run_and_log.sh` and `scripts/append_from_log.py` exist and that
+# the training script prints the effective LR so logs/CSV reflect the actual LR used.
 set -euo pipefail
 
 # default grid values
