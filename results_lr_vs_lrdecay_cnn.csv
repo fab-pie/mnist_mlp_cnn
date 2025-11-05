@@ -1,0 +1,2 @@
+LR,LR_DECAY,loss,accuracy,train_time_s
+0.005,0.90,0.54,89.67,204
