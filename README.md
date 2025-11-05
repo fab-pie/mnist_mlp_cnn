@@ -133,8 +133,6 @@ python3 -m http.server 8000
 # then open http://localhost:8000/docs/ in a WebGPU-capable browser
 ```
 
-Note: Modern Chrome/Chromium-based browsers have experimental WebGPU support. You may need to enable the WebGPU flag or run an up-to-date browser with WebGPU enabled.
-
 ## Train & export (if you want to re-create models)
 
 These scripts use tinygrad and the project's export utilities. Example commands used during development:
@@ -167,8 +165,6 @@ Model weight files (`*.safetensors`) are large. Options:
 - Keep in repo (simple, but increases repo size).
 - Use Git LFS for large binaries.
 - Host weights externally (e.g., cloud storage or GitHub Releases) and fetch them at runtime.
-
-If you want, I can add a minimal `.gitignore` and a Git LFS setup to keep the repository lightweight.
 
 ## Troubleshooting
 
