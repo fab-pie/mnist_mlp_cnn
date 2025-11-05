@@ -1,9 +1,9 @@
-// --- Importer les modules exportés (default) depuis les dossiers des modèles ---
+// --- Import exported modules (default) from the model folders ---
 // mnist_convnet and mnist_mlp live at repository root; main.js is in /Webapp
 import cnnModule from './mnist_convnet/mnist_convnet.js';
 import mlpModule from './mnist_mlp/mnist_mlp.js';
 
-// --- Éléments HTML ---
+// --- HTML elements ---
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const clearBtn = document.getElementById("clearBtn");
@@ -35,7 +35,7 @@ if (!penBtn || !eraserBtn) {
   }
 }
 
-// --- Canvas initialisation ---
+// --- Canvas initialization ---
 ctx.fillStyle = "white";
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -72,7 +72,7 @@ function draw(e) {
   ctx.arc(x, y, radius, 0, Math.PI * 2);
   ctx.fill();
 
-  // Débounced prediction handled elsewhere
+  // Debounced prediction handled elsewhere
   schedulePredict();
 }
 
@@ -100,7 +100,7 @@ if (eraserBtn) {
   });
 }
 
-// --- Variables modèles ---
+// --- Model variables ---
 let cnnModel, mlpModel;
 let modelsReady = false;
 let cnnRunner = null;
@@ -131,14 +131,14 @@ function recordFeedback(isCorrect) {
   updateAccuracyDisplay();
 }
 
-// --- Charger les modèles WebGPU ---
+// --- Load WebGPU models ---
 async function loadModels() {
   try {
     const adapter = await navigator.gpu.requestAdapter();
     const device = await adapter.requestDevice();
 
-    // Charger CNN
-    // modules export default an object with .load
+  // Load CNN
+  // modules export default an object with .load
     const cnnLoadedModule = cnnModule;
     const mlpLoadedModule = mlpModule;
 
@@ -148,7 +148,7 @@ async function loadModels() {
       const resp = await fetch(path);
       if (!resp.ok) throw new Error(`Failed to fetch ${path}: ${resp.status} ${resp.statusText}`);
       const ab = await resp.arrayBuffer();
-      // quick heuristic: if the response starts with '<' it's probably HTML (an error page)
+    // quick heuristic: if the response starts with '<' it's probably HTML (an error page)
       const firstChar = new TextDecoder().decode(new Uint8Array(ab, 0, Math.min(1, ab.byteLength)));
       if (firstChar === '<') {
         // also provide a short text preview to help debugging
@@ -162,7 +162,7 @@ async function loadModels() {
   const cnnWeights = await fetchSafetensor("./mnist_convnet/mnist_convnet.webgpu.safetensors");
   const mlpWeights = await fetchSafetensor("./mnist_mlp/mnist_mlp.webgpu.safetensors");
 
-    // Use setupNet directly (module exposes setupNet) so we don't re-fetch inside the module
+  // Use setupNet directly (module exposes setupNet) so we don't re-fetch inside the module
     cnnRunner = await cnnLoadedModule.setupNet(device, cnnWeights);
     mlpRunner = await mlpLoadedModule.setupNet(device, mlpWeights);
 
@@ -170,17 +170,17 @@ async function loadModels() {
     window._cnnRunner = cnnRunner;
     window._mlpRunner = mlpRunner;
 
-    // show weight sizes to help verify what's loaded
+  // show weight sizes to help verify what's loaded
     const cnnKB = Math.round((cnnWeights.byteLength || cnnWeights.length) / 1024);
     const mlpKB = Math.round((mlpWeights.byteLength || mlpWeights.length) / 1024);
     loader.textContent = `Models loaded — CNN: ${cnnKB} KB, MLP: ${mlpKB} KB`;
 
-    // display active model in the results area
-    resultsDiv.innerHTML = `<div><strong>Modèle actif:</strong> ${modelSelect.value.toUpperCase()}</div>`;
+  // display active model in the results area
+  resultsDiv.innerHTML = `<div><strong>Active model:</strong> ${modelSelect.value.toUpperCase()}</div>`;
 
     // when the user switches model, update the displayed active model and re-run prediction
     modelSelect.addEventListener('change', () => {
-      resultsDiv.querySelector('strong').textContent = 'Modèle actif:';
+      resultsDiv.querySelector('strong').textContent = 'Active model:';
       resultsDiv.firstChild && (resultsDiv.firstChild.nextSibling.textContent = ` ${modelSelect.value.toUpperCase()}`);
       if (modelsReady) schedulePredict();
       updateAccuracyDisplay();
@@ -195,14 +195,14 @@ async function loadModels() {
     console.log("Models loaded!");
   updateAccuracyDisplay();
   } catch (err) {
-    console.error("Erreur lors du chargement des modèles:", err);
-    loader.textContent = "Erreur de chargement des modèles.";
+    console.error("Error loading models:", err);
+    loader.textContent = "Error loading models.";
   }
 }
 
 loadModels();
 
-// --- Transformer le canvas en tableau 28x28 normalisé ---
+// --- Convert canvas to normalized 28x28 array ---
 function getImageData() {
   const tmpCanvas = document.createElement("canvas");
   tmpCanvas.width = 28;
@@ -219,7 +219,7 @@ function getImageData() {
   return data;
 }
 
-// --- Prédiction ---
+// --- Prediction ---
 async function predict() {
   if (!modelsReady) return;
 
@@ -241,12 +241,12 @@ async function predict() {
     const logits = (Array.isArray(out) ? out[0] : out);
     const probs = softmax(Array.from(logits));
 
-    // Render results
-    const bestIdx = probs.indexOf(Math.max(...probs));
-    let html = `<h3>Prédiction : ${bestIdx} (${(probs[bestIdx]*100).toFixed(2)}%)</h3>`;
-    html += `<div>Temps inférence : ${(t1 - t0).toFixed(2)} ms</div>`;
-    // render probabilities as vertical bars that grow upwards, all digits in one row
-    html += '<h4>Probabilités</h4>';
+  // Render results
+  const bestIdx = probs.indexOf(Math.max(...probs));
+  let html = `<h3>Prediction: ${bestIdx} (${(probs[bestIdx]*100).toFixed(2)}%)</h3>`;
+  html += `<div>Inference time: ${(t1 - t0).toFixed(2)} ms</div>`;
+  // render probabilities as vertical bars that grow upwards, all digits in one row
+  html += '<h4>Probabilities</h4>';
     // make the frame larger and force single-line layout; allow horizontal scroll on small screens
     html += '<div id="probs" style="display:flex;gap:14px;flex-wrap:nowrap;justify-content:center;align-items:flex-end;padding:12px 6px;overflow-x:auto;max-width:100%;">';
     probs.forEach((p,i)=>{
@@ -276,8 +276,8 @@ async function predict() {
     // feedback UI inserted under probabilities: ✅ / ❌ + accuracy display
     const feedbackHtml = `
       <div id="feedback" style="margin-top:8px;display:flex;align-items:center;gap:12px;">
-        <button id="btnCorrect" title="C'est correct" style="background:#4caf50;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:16px;">✅</button>
-        <button id="btnWrong" title="C'est incorrect" style="background:#f44336;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:16px;">❌</button>
+        <button id="btnCorrect" title="Correct" style="background:#4caf50;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:16px;">✅</button>
+        <button id="btnWrong" title="Incorrect" style="background:#f44336;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:16px;">❌</button>
         <div id="accuracyDisplay" style="font-size:14px;color:#333;margin-left:8px;">Loading accuracy...</div>
       </div>
     `;
@@ -292,7 +292,7 @@ async function predict() {
     // update accuracy display for current model
     updateAccuracyDisplay();
   } catch (err) {
-    console.error("Erreur pendant la prédiction:", err);
+    console.error("Error during prediction:", err);
   }
 }
 
