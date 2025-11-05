@@ -6,6 +6,8 @@ A small interactive demo that shows handwritten digit classification (MNIST) in 
 Live demo: (no public demo link provided)  
 (Run locally — instructions below.)
 
+<img width="2559" height="1243" alt="image" src="https://github.com/user-attachments/assets/a5632a22-989c-44d6-bccc-0a2fb13a4722" />
+
 ## Overview
 
 This repository contains:
