@@ -143,28 +143,6 @@ def main():
     with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
         txt = f.read()
     row = parse_log_text(txt)
-
-    # Try to recover extra parameter values from the log filename if they are not present in the environment.
-    # e.g. filenames like run_cnn_1_lr0p005_scale5_s70.log or run_cnn_1_lr0p005_shift5_s70.log
-    base = os.path.basename(log_file)
-    tokens = re.findall(r'[_-]([a-zA-Z]+)([0-9p\.]+)', base)
-    # map token names (lower) -> value (with 'p' -> '.')
-    token_map = {}
-    for k,v in tokens:
-        token_map[k.lower()] = v.replace('p', '.')
-    # if extra params were requested, and env doesn't have them, fill from filename tokens when possible
-    if extra_params:
-        for p in [pp.strip() for pp in extra_params.split(',') if pp.strip()]:
-            if not os.environ.get(p):
-                key = p.lower()
-                # try exact match (scale -> 'scale'), fallback to 'pat' token if present
-                if key in token_map:
-                    os.environ[p] = token_map[key]
-                elif 'pat' in token_map:
-                    os.environ[p] = token_map['pat']
-                # also try short forms like 's' or 'p' for steps etc
-                elif 's' in token_map and key in ['steps', 'step']:
-                    os.environ[p] = token_map['s']
     append_row(out_csv, row, extra_params=extra_params)
     print('Appended row to', out_csv)
 

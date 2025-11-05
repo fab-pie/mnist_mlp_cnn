@@ -1,90 +1,181 @@
-# Grid-run + Combined Heatmaps
 
-Ce dépôt contient des scripts pour lancer une grille d'entraînement sur différentes paires d'hyperparamètres (par ex. LR vs LR_DECAY) pour deux modèles (CNN et MLP), collecter les métriques et générer des heatmaps comparatives (CNN vs MLP) pour les métriques `accuracy`, `loss` et `train_time_s`.
+# MNIST TinyGrad → WebGPU Demo
 
-Fichiers clés
-- `run_grid.sh` (alias historique) and `run_grid_lr_lrdecay.sh` : lance la grille pour la paire LR vs LR_DECAY et produit un CSV par modèle (ex: `results_lr_vs_lrdecay_cnn.csv`, `results_lr_vs_lrdecay_mlp.csv`).
-- `run_grid_lr_batch.sh` : grille LR vs BATCH (produit `results_lr_vs_batch_*.csv`).
-- `run_grid_lr_patience.sh` : grille LR vs PATIENCE (produit `results_lr_vs_patience_*.csv`).
-- `run_grid_lr_angle.sh` : grille LR vs ANGLE (produit `results_lr_vs_angle_*.csv`).
-- `scripts/append_from_log.py` : parse les logs et ajoute une ligne dans le CSV correspondant ; maintenant accepte une liste optionnelle de paramètres supplémentaires (ex: `BATCH`, `PATIENCE`, `ANGLE`) qui seront lus depuis les variables d'environnement et ajoutés au CSV.
-- `plot_combined_heatmaps.py` : lit plusieurs CSV (un par modèle) et génère, pour chaque métrique, une image contenant les heatmaps des modèles côte-à-côte. Tu peux passer `--prefix` pour nommer les fichiers selon la paire d'hyperparamètres (ex: `lr_vs_lrdecay_accuracy_combined.png`).
-- `plots/` : dossier de sortie pour les images.
+A small interactive demo that shows handwritten digit classification (MNIST) in the browser using models trained with tinygrad and exported for WebGPU.
 
-Pré-requis
-- Python 3
-- Bibliothèques Python pour les plots : pandas, matplotlib, seaborn
+Live demo: (no public demo link provided)  
+(Run locally — instructions below.)
 
-Installation rapide :
+## Overview
 
-```bash
-pip install pandas matplotlib seaborn
-```
+This repository contains:
 
-Usage rapide — exemples
+- Python training and export scripts using tinygrad (`mnist_mlp.py`, `mnist_convnet.py`).
+- Exported model artifacts and a small single-page web app that runs inference with WebGPU (`docs/` served by GitHub Pages).
 
-1) Recréer les heatmaps pour LR vs LR_DECAY (si CSV existants à la racine)
+Two models are provided:
+- MLP (multi-layer perceptron) trained on MNIST
+- CNN (convolutional neural network) trained on MNIST
 
-```bash
-python3 plot_combined_heatmaps.py --csv results_lr_vs_lrdecay_cnn.csv results_lr_vs_lrdecay_mlp.csv --labels cnn mlp --out plots --prefix lr_vs_lrdecay
-```
+Both models are exported to a small JavaScript loader (`*.js`) and weight bundles (`*.safetensors`) so inference runs entirely in the browser using WebGPU.
 
-2) Lancer la grille complète (LR vs LR_DECAY)
+## Features
 
-- Dry run (prévisualise les commandes sans exécuter) :
+- Draw digits on a canvas (pen + clear).
+- Switch between CNN and MLP models.
+- Real-time inference (inputs are resized to 28x28 and normalized).
+- Confidence visualization: a 10-bar probability chart (softmax output).
+- Lightweight WebGPU-based inference using exported tinygrad artifacts.
 
-```bash
-DRY_RUN=1 bash run_grid.sh
-```
+## Model Summary
 
-- Lancer la grille réelle (exemple rapide) :
+| Model | Notes |
+|---|---|
+| MLP | Small fully-connected network exported from `mnist_mlp.py` (good baseline) |
+| CNN | Small convnet exported from `mnist_convnet.py` (higher accuracy target) |
 
-```bash
-STEPS=15 bash run_grid.sh
-```
+See `HYPERPARAMETERS.md` for training runs, hyperparameters explored, and accuracy logs.
 
-3) Lancer une grille différente (exemples)
+## How the models and training work
 
-- LR vs BATCH :
+High-level flow:
 
-```bash
-DRY_RUN=1 bash run_grid_lr_batch.sh
-# ou run réellement
-STEPS=15 bash run_grid_lr_batch.sh
-```
+- Training scripts (`mnist_mlp.py` and `mnist_convnet.py`) load the MNIST dataset and apply lightweight on-the-fly data augmentation (random rotation, scale and shift) using a small `geometric_transform` helper.
+- Inputs are normalized to the range [-1, 1] before being fed to the model.
+- The MLP is a simple fully-connected network (784 -> 512 -> 512 -> 10) with SiLU activations. The CNN uses a small convnet (Conv → SiLU → Conv → SiLU → BatchNorm → MaxPool → Conv… → linear) designed as a compact but accurate feature extractor.
+- Training uses tinygrad's `Muon` optimizer and a simple learning-rate schedule: if validation/test accuracy does not improve for `PATIENCE` steps, the LR is multiplied by `LR_DECAY` and the best-known weights are reloaded.
+- After training, the best model state is exported using the repository's `export_model` helper, producing a `*.js` loader and `*.webgpu.safetensors` weight file which the web app consumes.
 
-- LR vs PATIENCE :
+Why augmentation matters here:
+- The random `ANGLE`, `SCALE` and `SHIFT` augmentations improve robustness to hand-drawn digits that are rotated, resized or slightly displaced. You can control their ranges with environment variables (see next section).
 
-```bash
-DRY_RUN=1 bash run_grid_lr_patience.sh
-STEPS=15 bash run_grid_lr_patience.sh
-```
+## Key hyperparameters (how to change them)
 
-- LR vs ANGLE :
+All training scripts read configuration from environment variables. Typical variables you can set on the command line before running the Python scripts:
 
-```bash
-DRY_RUN=1 bash run_grid_lr_angle.sh
-STEPS=15 bash run_grid_lr_angle.sh
-```
+- `STEPS` — number of training iterations (default in scripts: 70). Example: `STEPS=100`.
+- `BATCH` — batch size used during training (default: 512).
+- `LR` — initial learning rate (e.g. `0.005`, `0.01`, `0.02`).
+- `LR_DECAY` — multiplicative factor applied to the learning rate when no improvement is seen after `PATIENCE` steps (default: `0.9`).
+- `PATIENCE` — number of iterations to wait without improvement before decaying LR (default: `50`).
+- `ANGLE` — maximum rotation (degrees) used for random augmentation (e.g. `5`, `15`).
+- `SCALE` — relative scale jitter (e.g. `0.1` for ±10%).
+- `SHIFT` — pixel shift magnitude used for translation augmentation (relative units used in the scripts).
+- `JIT` — enable/disable tinygrad JIT where applicable (used in run scripts).
+- `SAMPLING` — sampling mode for geometric transforms (nearest or bilinear).
 
-Notes techniques
-- Les scripts créent un CSV par modèle. Les CSV contiennent au moins les colonnes : `<PARAM1>,<PARAM2>,loss,accuracy,train_time_s` où `<PARAM1>` et `<PARAM2>` correspondent à la paire testée (ex: `LR,PATIENCE`).
-- `scripts/append_from_log.py` prend désormais un troisième paramètre optionnel (liste comma-separated) indiquant les noms de paramètres supplémentaires à lire depuis les variables d'environnement et à inclure dans la CSV. Les run scripts appellent ce script en lui passant exactement les deux paramètres testés.
-- `plot_combined_heatmaps.py` accepte `--prefix` pour intégrer le nom du couple d'hyperparamètres dans les noms de fichiers de sortie.
-
-Créer un rapport PDF (optionnel)
-
-Si ImageMagick est installé, tu peux convertir les images en PDF :
+Example: run a training session with a lower LR and more steps:
 
 ```bash
-convert plots/lr_vs_lrdecay_accuracy_combined.png plots/lr_vs_lrdecay_loss_combined.png plots/lr_vs_lrdecay_train_time_s_combined.png combined_report_lr_vs_lrdecay.pdf
+STEPS=100 LR=0.01 LR_DECAY=0.95 PATIENCE=20 BATCH=256 JIT=1 python3 mnist_convnet.py
 ```
 
-Extensions possibles (je peux faire si tu veux)
-- ajouter `requirements.txt` ;
-- modifier `plot_combined_heatmaps.py` pour accepter un CSV unique avec une colonne `model` et construire directement les figures ;
-- générer automatiquement un PDF/HTML à la fin de chaque script.
+The scripts save the best model weights into `mnist_convnet/mnist_convnet.safetensors` (or the MLP folder equivalent) and then export `mnist_convnet.js` + `mnist_convnet.webgpu.safetensors` for the web app.
 
----
+## Automated experiments and parameter sweeps
 
-README mis à jour. Dis-moi quelle option tu veux ensuite (ex: rendre tous les scripts exécutables, exécuter une des nouvelles grilles, ou générer automatiquement un PDF à la fin de chaque run).
+I included several helper bash scripts to automate grid searches across hyperparameters. They set environment variables, run the training script, and move each run log into `logs/` so you can compare runs easily.
+
+Examples of the scripts in the repo:
+
+- `run_grid_lr_angle.sh` — sweeps learning rate vs rotation angle.
+- `run_grid_lr_shift.sh` — sweeps learning rate vs translation/shift.
+- `run_grid_lr_scale.sh`, `run_grid_lr_batch.sh`, `run_grid_lr_lrdecay.sh`, `run_grid_lr_patience.sh` — similar experiments for other parameters.
+
+Usage example (from repo root):
+
+```bash
+# run a grid comparing LR and ANGLE (set STEPS/BATCH/JIT if you want)
+STEPS=50 BATCH=512 JIT=1 bash run_grid_lr_angle.sh
+```
+
+What the scripts do:
+
+- They iterate over parameter lists (defined in the script) and export the chosen env vars for each run.
+- Each run writes a `run_last.log` then the script renames and moves it to `logs/` with a filename that encodes the parameters (e.g. `run_cnn_1_lr0p005_ang5_s50.log`).
+
+Post-processing:
+- Use `scripts/append_from_log.py` or `scripts/rebuild_csv_from_logs.py` to rebuild or append results into the `results_*.csv` files present in the repo. These CSVs are used to generate the plots in `plots/`.
+
+## Inspecting results and plots
+
+- CSV results files are stored at the repo root, for example `results_lr_vs_angle_cnn.csv` and `results_lr_vs_angle_mlp.csv`.
+- A set of plots has been generated and placed in `plots/` (e.g. `lr_vs_angle_accuracy_combined.png`). If you re-run sweeps, regenerate the CSVs with `scripts/rebuild_csv_from_logs.py` and re-run `plot_all_heatmaps.py` or `plot_combined_heatmaps.py` to update the images.
+
+## Tips for hyperparameter tuning
+
+- Start with a small sweep over `LR` (e.g. 0.005, 0.01, 0.02) and a moderate `STEPS` (50–100). Observe the validation curve in the logs.
+- If the accuracy plateaus early, decrease `LR` or increase `PATIENCE` (so LR decay happens less often).
+- If training is unstable (loss jumps), lower `LR` and/or reduce batch size.
+- Use the augmentation parameters (`ANGLE`, `SCALE`, `SHIFT`) to test robustness; larger augmentation ranges increase robustness but can make convergence slower.
+
+## Where logs and artifacts are saved
+
+- `logs/` — per-run textual logs. Filenames encode model, LR and other parameters.
+- `mnist_convnet/`, `mnist_mlp/` — model artifacts, exported JS and safetensors.
+- `results_*.csv` and `plots/` — aggregated results and visualizations from sweep runs.
+
+## Quick start — Run locally
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/fab-pie/mnist_mlp_cnn.git
+cd mnist_mlp_cnn
+```
+
+2. Serve the project locally (WebGPU requires HTTP):
+
+```bash
+python3 -m http.server 8000
+# then open http://localhost:8000/docs/ in a WebGPU-capable browser
+```
+
+Note: Modern Chrome/Chromium-based browsers have experimental WebGPU support. You may need to enable the WebGPU flag or run an up-to-date browser with WebGPU enabled.
+
+## Train & export (if you want to re-create models)
+
+These scripts use tinygrad and the project's export utilities. Example commands used during development:
+
+```bash
+# Train and export the MLP (example, 100 steps)
+STEPS=100 JIT=1 python3 mnist_mlp.py
+
+# Train and export the CNN
+STEPS=100 JIT=1 python3 mnist_convnet.py
+```
+
+Each command creates a folder (`mnist_mlp/` or `mnist_convnet/`) with the exported JavaScript loader and `.safetensors` weight files.
+
+## Serving the web app locally
+
+The repository contains a single-page web app and exported model artifacts under `docs/` (and `Webapp/` in some branches). To run the app locally do:
+
+```bash
+python3 -m http.server 8000
+# then open http://localhost:8000/docs/ in a WebGPU-capable browser
+```
+
+Note: WebGPU support varies by browser. Use an up-to-date Chromium build with WebGPU enabled.
+
+## Notes on large files and versioning
+
+Model weight files (`*.safetensors`) are large. Options:
+
+- Keep in repo (simple, but increases repo size).
+- Use Git LFS for large binaries.
+- Host weights externally (e.g., cloud storage or GitHub Releases) and fetch them at runtime.
+
+If you want, I can add a minimal `.gitignore` and a Git LFS setup to keep the repository lightweight.
+
+## Troubleshooting
+
+- If the web app shows "Loading models..." for a long time, open the DevTools Console to see error messages (failed fetches, CORS, or WebGPU adapter errors).
+- If modules fail to load, verify the relative paths used by `docs/main.js` and that the corresponding `.js` and `.safetensors` files are present next to it.
+
+## Files of interest
+
+- `mnist_mlp.py`, `mnist_convnet.py` — training & export scripts (tinygrad)
+- `docs/index.html`, `docs/main.js` — web application and loader
+- `HYPERPARAMETERS.md` — hyperparameter experiments and accuracy logs
+

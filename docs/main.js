@@ -11,11 +11,44 @@ const modelSelect = document.getElementById("modelSelect");
 const resultsDiv = document.getElementById("results");
 const loader = document.getElementById("loader");
 
+// Pen / Eraser tool buttons (will be created dynamically if not present in HTML)
+let penBtn = document.getElementById('penBtn');
+let eraserBtn = document.getElementById('eraserBtn');
+if (!penBtn || !eraserBtn) {
+  if (clearBtn && clearBtn.parentNode) {
+    if (!penBtn) {
+      penBtn = document.createElement('button');
+      penBtn.id = 'penBtn';
+      penBtn.textContent = 'Pen';
+      penBtn.title = 'Pen tool (draw)';
+      penBtn.style.marginLeft = '8px';
+      clearBtn.parentNode.insertBefore(penBtn, clearBtn.nextSibling);
+    }
+    if (!eraserBtn) {
+      eraserBtn = document.createElement('button');
+      eraserBtn.id = 'eraserBtn';
+      eraserBtn.textContent = 'Eraser';
+      eraserBtn.title = 'Eraser tool (erase)';
+      eraserBtn.style.marginLeft = '6px';
+      clearBtn.parentNode.insertBefore(eraserBtn, penBtn.nextSibling);
+    }
+  }
+}
+
 // --- Canvas initialisation ---
 ctx.fillStyle = "white";
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
 let drawing = false;
+// current tool: 'pen' or 'eraser'
+let currentTool = 'pen';
+// brush sizes
+const BRUSH_PEN = 10;
+const BRUSH_ERASER = 18;
+
+// rename clear button label to English 'Clear'
+if (clearBtn) clearBtn.textContent = 'Clear';
+
 canvas.addEventListener("mousedown", () => drawing = true);
 canvas.addEventListener("mouseup", () => drawing = false);
 canvas.addEventListener("mouseleave", () => drawing = false);
@@ -32,9 +65,11 @@ function draw(e) {
   const x = clientX - rect.left;
   const y = clientY - rect.top;
 
-  ctx.fillStyle = "black";
+  const isEraser = (currentTool === 'eraser');
+  ctx.fillStyle = isEraser ? 'white' : 'black';
+  const radius = isEraser ? BRUSH_ERASER : BRUSH_PEN;
   ctx.beginPath();
-  ctx.arc(x, y, 10, 0, Math.PI * 2);
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
   ctx.fill();
 
   // Débounced prediction handled elsewhere
@@ -46,6 +81,24 @@ clearBtn.addEventListener("click", () => {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   resultsDiv.innerHTML = "";
 });
+
+// Tool button handlers: visual feedback and switching
+if (penBtn) {
+  penBtn.addEventListener('click', () => {
+    currentTool = 'pen';
+    penBtn.style.background = '#4caf50'; penBtn.style.color = 'white';
+    if (eraserBtn) { eraserBtn.style.background = ''; eraserBtn.style.color = ''; }
+  });
+  // default active style
+  penBtn.style.background = '#4caf50'; penBtn.style.color = 'white';
+}
+if (eraserBtn) {
+  eraserBtn.addEventListener('click', () => {
+    currentTool = 'eraser';
+    eraserBtn.style.background = '#f44336'; eraserBtn.style.color = 'white';
+    if (penBtn) { penBtn.style.background = ''; penBtn.style.color = ''; }
+  });
+}
 
 // --- Variables modèles ---
 let cnnModel, mlpModel;

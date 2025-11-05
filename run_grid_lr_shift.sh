@@ -4,7 +4,7 @@ set -euo pipefail
 
 # default grid values
 LRS=(0.005 0.01 0.02 0.05 0.1)
-SHIFT=(5 10 20 50)
+SHIFT=(0.1 0.2 0.5 1.0 2.0)
 
 # models
 MODELS=("mnist_convnet.py cnn" "mnist_mlp.py mlp")
