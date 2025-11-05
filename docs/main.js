@@ -1,7 +1,7 @@
 // --- Importer les modules exportés (default) depuis les dossiers des modèles ---
 // mnist_convnet and mnist_mlp live at repository root; main.js is in /Webapp
-import cnnModule from '../mnist_convnet/mnist_convnet.js';
-import mlpModule from '../mnist_mlp/mnist_mlp.js';
+import cnnModule from './mnist_convnet/mnist_convnet.js';
+import mlpModule from './mnist_mlp/mnist_mlp.js';
 
 // --- Éléments HTML ---
 const canvas = document.getElementById("canvas");
@@ -106,8 +106,8 @@ async function loadModels() {
     }
 
   // weights are stored at repo root next to the model JS files
-  const cnnWeights = await fetchSafetensor("../mnist_convnet/mnist_convnet.webgpu.safetensors");
-  const mlpWeights = await fetchSafetensor("../mnist_mlp/mnist_mlp.webgpu.safetensors");
+  const cnnWeights = await fetchSafetensor("./mnist_convnet/mnist_convnet.webgpu.safetensors");
+  const mlpWeights = await fetchSafetensor("./mnist_mlp/mnist_mlp.webgpu.safetensors");
 
     // Use setupNet directly (module exposes setupNet) so we don't re-fetch inside the module
     cnnRunner = await cnnLoadedModule.setupNet(device, cnnWeights);
